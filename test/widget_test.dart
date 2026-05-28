@@ -12,8 +12,9 @@ void main() {
       ),
     );
 
-    // Verify that the title is displayed on the main menu.
+    // Verify that the title and instructions button are displayed on the main menu.
     expect(find.text('KERNEL PANIC'), findsOneWidget);
     expect(find.text('SELECCIONAR MODO DE JUEGO'), findsOneWidget);
+    expect(find.text('MANUAL DE OPERACIONES'), findsOneWidget);
   });
 }

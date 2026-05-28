@@ -6,6 +6,7 @@ import 'views/board_view.dart';
 import 'providers/game_provider.dart';
 import 'models/piece.dart';
 import 'models/game_state.dart';
+import 'views/instructions_view.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -161,6 +162,26 @@ class MainMenuScreen extends ConsumerWidget {
                               style: TextStyle(fontSize: 10, color: Colors.grey),
                             ),
                           ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const InstructionsScreen()),
+                          );
+                        },
+                        icon: const Icon(Icons.menu_book, size: 18),
+                        label: const Text(
+                          'MANUAL DE OPERACIONES',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 1.0),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF161B22),
+                          foregroundColor: Colors.greenAccent,
+                          side: const BorderSide(color: Colors.greenAccent, width: 1),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
                       ),
                     ],
