@@ -65,10 +65,12 @@ class GameNotifier extends Notifier<GameState> {
 
       bool isKernelInDanger = state.isKernelInDanger;
       Position? attackerPosition = state.attackerPosition;
-      Position? kidnapperPosition = state.kidnapperPosition;
+      Position? whiteKernelKidnapper = state.whiteKernelKidnapper;
+      Position? blackKernelKidnapper = state.blackKernelKidnapper;
       PieceColor? winner = state.winner;
       bool clearAttacker = false;
-      bool clearKidnapper = false;
+      bool clearWhiteKidnapper = false;
+      bool clearBlackKidnapper = false;
 
       // 1. EVALUAR RESCATE (Modo Assassination)
       if (state.gameMode == GameMode.assassination && state.isKernelInDanger) {
@@ -83,34 +85,78 @@ class GameNotifier extends Notifier<GameState> {
         }
       }
 
-      // 2. EVALUAR NUEVAS CAPTURAS
+      // 1.5 EVALUAR LIBERACIÓN / CONTRA-SECUESTRO (Modo Kidnapping)
+      if (state.gameMode == GameMode.kidnapping) {
+        // Si una pieza Blanca captura al secuestrador del Kernel Blanco (que es una pieza Negra en whiteKernelKidnapper)
+        if (state.whiteKernelKidnapper != null && to == state.whiteKernelKidnapper) {
+          _reviveKernel(currentPieces, PieceColor.white, to);
+          clearWhiteKidnapper = true;
+          
+          // Y además captura al Kernel Negro enemigo! La pieza Blanca en 'to' se convierte en el secuestrador del Kernel Negro.
+          _removePieceOfType(currentPieces, PieceType.kernel, PieceColor.black);
+          blackKernelKidnapper = to;
+        }
+        // Si una pieza Negra captura al secuestrador del Kernel Negro (que es una pieza Blanca en blackKernelKidnapper)
+        else if (state.blackKernelKidnapper != null && to == state.blackKernelKidnapper) {
+          _reviveKernel(currentPieces, PieceColor.black, to);
+          clearBlackKidnapper = true;
+          
+          // Y además captura al Kernel Blanco enemigo! La pieza Negra en 'to' se convierte en el secuestrador del Kernel Blanco.
+          _removePieceOfType(currentPieces, PieceType.kernel, PieceColor.white);
+          whiteKernelKidnapper = to;
+        }
+      }
+
+      // 2. EVALUAR NUEVAS CAPTURAS DE KERNEL
       if (targetPiece != null) {
         if (targetPiece.type == PieceType.kernel) {
           if (state.gameMode == GameMode.assassination) {
             isKernelInDanger = true;
             attackerPosition = to;
           } else if (state.gameMode == GameMode.kidnapping) {
-            kidnapperPosition = to;
+            if (targetPiece.color == PieceColor.white) {
+              whiteKernelKidnapper = to;
+            } else {
+              blackKernelKidnapper = to;
+            }
           }
-        } else if (to == state.kidnapperPosition) {
-           // Asesinaron al secuestrador, el Kernel revive
-           _reviveKernel(currentPieces, state.currentTurn, to);
-           clearKidnapper = true;
+        } else {
+          // Si capturan a una pieza cualquiera que NO sea Kernel, pero es un secuestrador (y no fue manejado arriba por contra-secuestro)
+          if (state.whiteKernelKidnapper != null && to == state.whiteKernelKidnapper) {
+            _reviveKernel(currentPieces, PieceColor.white, to);
+            clearWhiteKidnapper = true;
+          }
+          if (state.blackKernelKidnapper != null && to == state.blackKernelKidnapper) {
+            _reviveKernel(currentPieces, PieceColor.black, to);
+            clearBlackKidnapper = true;
+          }
         }
       }
 
-      // 3. EVALUAR VICTORIA POR SECUESTRO
-      if (state.gameMode == GameMode.kidnapping && kidnapperPosition != null) {
-         if (from == state.kidnapperPosition) {
-            kidnapperPosition = to; // Actualizamos la posición del secuestrador si se movió
-         }
-         // Si el secuestrador llega a su propia fila base (0 para negro, 7 para blanco)
-         if ((pieceToMove.color == PieceColor.black && to.y == 0) || 
-             (pieceToMove.color == PieceColor.white && to.y == 7)) {
-            if (to == kidnapperPosition) {
-               winner = pieceToMove.color;
-            }
-         }
+      // 2.5 ACTUALIZAR POSICIÓN DE SECUESTRADOR AL MOVERSE
+      if (state.gameMode == GameMode.kidnapping) {
+        if (from == state.whiteKernelKidnapper) {
+          whiteKernelKidnapper = to;
+        }
+        if (from == state.blackKernelKidnapper) {
+          blackKernelKidnapper = to;
+        }
+      }
+
+      // 3. EVALUAR VICTORIA POR SECUESTRO / EXTRACCIÓN
+      if (state.gameMode == GameMode.kidnapping) {
+        // Si el secuestrador del Kernel Negro (pieza blanca) llega a la fila 7 (fila base blanca)
+        if (blackKernelKidnapper != null && blackKernelKidnapper == to) {
+          if (to.y == 7) {
+            winner = PieceColor.white;
+          }
+        }
+        // Si el secuestrador del Kernel Blanco (pieza negra) llega a la fila 0 (fila base negra)
+        if (whiteKernelKidnapper != null && whiteKernelKidnapper == to) {
+          if (to.y == 0) {
+            winner = PieceColor.black;
+          }
+        }
       }
 
       bool isOverclockActive = state.isOverclockActive;
@@ -129,8 +175,10 @@ class GameNotifier extends Notifier<GameState> {
         isKernelInDanger: isKernelInDanger,
         attackerPosition: attackerPosition,
         clearAttacker: clearAttacker,
-        kidnapperPosition: kidnapperPosition,
-        clearKidnapper: clearKidnapper,
+        whiteKernelKidnapper: whiteKernelKidnapper,
+        blackKernelKidnapper: blackKernelKidnapper,
+        clearWhiteKidnapper: clearWhiteKidnapper,
+        clearBlackKidnapper: clearBlackKidnapper,
         winner: winner,
         clearSelectedPosition: true,
       );
@@ -207,10 +255,13 @@ class GameNotifier extends Notifier<GameState> {
       currentPieces[targetPos] = daemon.copyWith(hasUsedGhost: true);
     }
 
-    bool clearKidnapper = false;
+    bool clearWhiteKidnapper = false;
+    bool clearBlackKidnapper = false;
     bool clearAttacker = false;
     bool isKernelInDanger = state.isKernelInDanger;
     PieceColor? winner = state.winner;
+    Position? whiteKernelKidnapper = state.whiteKernelKidnapper;
+    Position? blackKernelKidnapper = state.blackKernelKidnapper;
 
     // Rescate si el fantasma mató al atacante/secuestrador
     if (state.gameMode == GameMode.assassination && state.isKernelInDanger) {
@@ -222,9 +273,32 @@ class GameNotifier extends Notifier<GameState> {
         // Falló el rescate.
         winner = state.currentTurn == PieceColor.white ? PieceColor.black : PieceColor.white;
       }
-    } else if (state.gameMode == GameMode.kidnapping && targetPos == state.kidnapperPosition) {
-      _reviveKernel(currentPieces, state.currentTurn, targetPos);
-      clearKidnapper = true;
+    } else if (state.gameMode == GameMode.kidnapping) {
+      // Si la pieza que usa Ghost (color = state.currentTurn) mata al secuestrador de su propio Kernel
+      if (state.currentTurn == PieceColor.white && state.whiteKernelKidnapper != null && targetPos == state.whiteKernelKidnapper) {
+        _reviveKernel(currentPieces, PieceColor.white, targetPos);
+        clearWhiteKidnapper = true;
+        
+        // Y además captura al Kernel Negro enemigo! El Daemon que saltó a targetPos se convierte en el secuestrador del Kernel Negro.
+        _removePieceOfType(currentPieces, PieceType.kernel, PieceColor.black);
+        blackKernelKidnapper = targetPos;
+      }
+      else if (state.currentTurn == PieceColor.black && state.blackKernelKidnapper != null && targetPos == state.blackKernelKidnapper) {
+        _reviveKernel(currentPieces, PieceColor.black, targetPos);
+        clearBlackKidnapper = true;
+        
+        // Y además captura al Kernel Blanco enemigo! El Daemon que saltó a targetPos se convierte en el secuestrador del Kernel Blanco.
+        _removePieceOfType(currentPieces, PieceType.kernel, PieceColor.white);
+        whiteKernelKidnapper = targetPos;
+      }
+      else if (state.whiteKernelKidnapper != null && targetPos == state.whiteKernelKidnapper) {
+        _reviveKernel(currentPieces, PieceColor.white, targetPos);
+        clearWhiteKidnapper = true;
+      }
+      else if (state.blackKernelKidnapper != null && targetPos == state.blackKernelKidnapper) {
+        _reviveKernel(currentPieces, PieceColor.black, targetPos);
+        clearBlackKidnapper = true;
+      }
     }
 
     bool isOverclockActive = state.isOverclockActive;
@@ -244,7 +318,10 @@ class GameNotifier extends Notifier<GameState> {
       isKernelInDanger: isKernelInDanger,
       winner: winner,
       clearAttacker: clearAttacker,
-      clearKidnapper: clearKidnapper,
+      clearWhiteKidnapper: clearWhiteKidnapper,
+      clearBlackKidnapper: clearBlackKidnapper,
+      whiteKernelKidnapper: whiteKernelKidnapper,
+      blackKernelKidnapper: blackKernelKidnapper,
       clearSelectedPosition: true,
     );
   }
@@ -356,6 +433,23 @@ class GameNotifier extends Notifier<GameState> {
     }
 
     state = state.copyWith(clearSelectedPosition: true);
+  }
+
+  void _removePieceOfType(Map<Position, Piece> pieces, PieceType type, PieceColor color) {
+    Position? posToRemove;
+    for (var entry in pieces.entries) {
+      if (entry.value.type == type && entry.value.color == color) {
+        posToRemove = entry.key;
+        break;
+      }
+    }
+    if (posToRemove != null) {
+      pieces.remove(posToRemove);
+    }
+  }
+
+  void setGameMode(GameMode mode) {
+    state = GameState.initial(mode: mode);
   }
 }
 

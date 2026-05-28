@@ -19,8 +19,10 @@ class GameState {
   // La posición de la pieza que capturó al Kernel (para que el defensor sepa a quién debe matar).
   final Position? attackerPosition;
 
-  // Para Kidnapping: La posición de la pieza secuestradora.
-  final Position? kidnapperPosition;
+  // Para Kidnapping: La posición de la pieza secuestradora del Kernel Blanco (pieza negra).
+  final Position? whiteKernelKidnapper;
+  // Para Kidnapping: La posición de la pieza secuestradora del Kernel Negro (pieza blanca).
+  final Position? blackKernelKidnapper;
 
   // Habilidades Activas
   final bool whiteOverclockUsed;
@@ -39,7 +41,8 @@ class GameState {
     this.winner,
     this.isKernelInDanger = false,
     this.attackerPosition,
-    this.kidnapperPosition,
+    this.whiteKernelKidnapper,
+    this.blackKernelKidnapper,
     this.whiteOverclockUsed = false,
     this.blackOverclockUsed = false,
     this.isOverclockActive = false,
@@ -63,9 +66,11 @@ class GameState {
     PieceColor? winner,
     bool? isKernelInDanger,
     Position? attackerPosition,
-    Position? kidnapperPosition,
+    Position? whiteKernelKidnapper,
+    Position? blackKernelKidnapper,
     bool clearAttacker = false,
-    bool clearKidnapper = false,
+    bool clearWhiteKidnapper = false,
+    bool clearBlackKidnapper = false,
     bool? whiteOverclockUsed,
     bool? blackOverclockUsed,
     bool? isOverclockActive,
@@ -82,7 +87,8 @@ class GameState {
       winner: winner ?? this.winner,
       isKernelInDanger: isKernelInDanger ?? this.isKernelInDanger,
       attackerPosition: clearAttacker ? null : (attackerPosition ?? this.attackerPosition),
-      kidnapperPosition: clearKidnapper ? null : (kidnapperPosition ?? this.kidnapperPosition),
+      whiteKernelKidnapper: clearWhiteKidnapper ? null : (whiteKernelKidnapper ?? this.whiteKernelKidnapper),
+      blackKernelKidnapper: clearBlackKidnapper ? null : (blackKernelKidnapper ?? this.blackKernelKidnapper),
       whiteOverclockUsed: whiteOverclockUsed ?? this.whiteOverclockUsed,
       blackOverclockUsed: blackOverclockUsed ?? this.blackOverclockUsed,
       isOverclockActive: isOverclockActive ?? this.isOverclockActive,

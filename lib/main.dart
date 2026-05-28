@@ -33,11 +33,153 @@ class KernelPanicApp extends StatelessWidget {
         primaryColor: Colors.greenAccent,
         scaffoldBackgroundColor: const Color(0xFF0D1117), // Estilo hacker/terminal
         appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF161B22),
+          backgroundColor: const Color(0xFF161B22),
           centerTitle: true,
         ),
       ),
-      home: const GameScreen(),
+      home: const MainMenuScreen(),
+    );
+  }
+}
+
+class MainMenuScreen extends ConsumerWidget {
+  const MainMenuScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Scaffold(
+      body: Center(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 36.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.coronavirus,
+                  size: 80,
+                  color: Colors.greenAccent,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'KERNEL PANIC',
+                  style: TextStyle(
+                    color: Colors.greenAccent,
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 4.0,
+                    shadows: [
+                      Shadow(color: Colors.greenAccent, blurRadius: 15),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'SISTEMA DE SEGURIDAD AJEDRECÍSTICO',
+                  style: TextStyle(
+                    color: Colors.greenAccent.withOpacity(0.7),
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 2.0,
+                  ),
+                ),
+                const SizedBox(height: 48),
+                Container(
+                  constraints: const BoxConstraints(maxWidth: 400),
+                  padding: const EdgeInsets.all(24.0),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF161B22),
+                    border: Border.all(color: Colors.greenAccent.withOpacity(0.5), width: 1.5),
+                    borderRadius: BorderRadius.circular(8.0),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Text(
+                        'SELECCIONAR MODO DE JUEGO',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.greenAccent,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      ElevatedButton(
+                        onPressed: () {
+                          ref.read(gameProvider.notifier).setGameMode(GameMode.assassination);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const GameScreen()),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF1E2D3D),
+                          foregroundColor: Colors.greenAccent,
+                          side: const BorderSide(color: Colors.greenAccent, width: 1),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        child: const Column(
+                          children: [
+                            Text(
+                              'MODO ASESINATO',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Protege tu Kernel o destruye al atacante',
+                              style: TextStyle(fontSize: 10, color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: () {
+                          ref.read(gameProvider.notifier).setGameMode(GameMode.kidnapping);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const GameScreen()),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF1E2D3D),
+                          foregroundColor: Colors.amberAccent,
+                          side: const BorderSide(color: Colors.amberAccent, width: 1),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        child: const Column(
+                          children: [
+                            Text(
+                              'CAPTURA Y EXTRACCIÓN',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Secuestra al Kernel enemigo y llévalo a tu base',
+                              style: TextStyle(fontSize: 10, color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 48),
+                Text(
+                  'v1.2.0-STABLE // GRAVIS LUDIO',
+                  style: TextStyle(
+                    color: Colors.greenAccent.withOpacity(0.4),
+                    fontSize: 10,
+                    letterSpacing: 1.0,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -58,9 +200,18 @@ class GameScreen extends ConsumerWidget {
     } else if (gameState.isKernelInDanger) {
       statusText = "¡ALERTA CRÍTICA: KERNEL EXPUESTO!\n(Tienes 1 turno para neutralizar la amenaza)";
       statusColor = Colors.redAccent;
-    } else if (gameState.gameMode == GameMode.kidnapping && gameState.kidnapperPosition != null) {
-      statusText = "¡KERNEL SECUESTRADO!\n(Detén al secuestrador antes de que escape)";
-      statusColor = Colors.orangeAccent;
+    } else if (gameState.gameMode == GameMode.kidnapping &&
+        (gameState.whiteKernelKidnapper != null || gameState.blackKernelKidnapper != null)) {
+      if (gameState.whiteKernelKidnapper != null && gameState.blackKernelKidnapper != null) {
+        statusText = "¡AMBOS KERNELS SECUESTRADOS!\n¡El primero en entregar el suyo en su base gana!";
+        statusColor = Colors.orangeAccent;
+      } else if (gameState.whiteKernelKidnapper != null) {
+        statusText = "¡KERNEL BLANCO SECUESTRADO!\n¡El secuestrador negro intenta escapar!";
+        statusColor = Colors.redAccent;
+      } else {
+        statusText = "¡KERNEL NEGRO SECUESTRADO!\n¡El secuestrador blanco intenta escapar!";
+        statusColor = Colors.cyanAccent;
+      }
     } else {
       statusText = gameState.currentTurn == PieceColor.white ? "Turno: BLANCAS" : "Turno: NEGRAS";
       statusColor = gameState.currentTurn == PieceColor.white ? Colors.white : Colors.grey;
@@ -69,6 +220,12 @@ class GameScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('KERNEL PANIC', style: TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.greenAccent),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
       ),
       body: Center(
         child: SingleChildScrollView(
@@ -94,7 +251,7 @@ class GameScreen extends ConsumerWidget {
                   children: [
                     ElevatedButton.icon(
                       onPressed: () {
-                        ref.read(gameProvider.notifier).state = GameState.initial();
+                        ref.read(gameProvider.notifier).state = GameState.initial(mode: gameState.gameMode);
                       },
                       icon: const Icon(Icons.refresh),
                       label: const Text('Reiniciar'),
