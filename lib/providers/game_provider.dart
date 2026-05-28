@@ -120,16 +120,6 @@ class GameNotifier extends Notifier<GameState> {
               blackKernelKidnapper = to;
             }
           }
-        } else {
-          // Si capturan a una pieza cualquiera que NO sea Kernel, pero es un secuestrador (y no fue manejado arriba por contra-secuestro)
-          if (state.whiteKernelKidnapper != null && to == state.whiteKernelKidnapper) {
-            _reviveKernel(currentPieces, PieceColor.white, to);
-            clearWhiteKidnapper = true;
-          }
-          if (state.blackKernelKidnapper != null && to == state.blackKernelKidnapper) {
-            _reviveKernel(currentPieces, PieceColor.black, to);
-            clearBlackKidnapper = true;
-          }
         }
       }
 

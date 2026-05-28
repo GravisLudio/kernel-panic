@@ -217,6 +217,8 @@ class GameScreen extends ConsumerWidget {
       statusColor = gameState.currentTurn == PieceColor.white ? Colors.white : Colors.grey;
     }
 
+    final bool shouldRotate = gameState.currentTurn == PieceColor.black;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('KERNEL PANIC', style: TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
@@ -228,11 +230,13 @@ class GameScreen extends ConsumerWidget {
         ),
       ),
       body: Center(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+        child: RotatedBox(
+          quarterTurns: shouldRotate ? 2 : 0,
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
                   statusText,
@@ -287,6 +291,7 @@ class GameScreen extends ConsumerWidget {
               ],
             ),
           ),
+        ),
         ),
       ),
     );
