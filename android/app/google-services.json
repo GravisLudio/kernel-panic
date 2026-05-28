@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1071926374066",
+    "project_id": "kernel-panic-app",
+    "storage_bucket": "kernel-panic-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1071926374066:android:2f26ed1431daea4bab23ab",
+        "android_client_info": {
+          "package_name": "com.example.kernelpanic"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDpWDt0T-hkyFpqLdC9XJUxO30GBw-ECvw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
