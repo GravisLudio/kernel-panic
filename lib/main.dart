@@ -190,34 +190,7 @@ class GameScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final gameState = ref.watch(gameProvider);
-    
-    String statusText = "";
-    Color statusColor = Colors.white;
-
-    if (gameState.winner != null) {
-      statusText = "¡VICTORIA: ${gameState.winner!.name.toUpperCase()}!";
-      statusColor = Colors.greenAccent;
-    } else if (gameState.isKernelInDanger) {
-      statusText = "¡ALERTA CRÍTICA: KERNEL EXPUESTO!\n(Tienes 1 turno para neutralizar la amenaza)";
-      statusColor = Colors.redAccent;
-    } else if (gameState.gameMode == GameMode.kidnapping &&
-        (gameState.whiteKernelKidnapper != null || gameState.blackKernelKidnapper != null)) {
-      if (gameState.whiteKernelKidnapper != null && gameState.blackKernelKidnapper != null) {
-        statusText = "¡AMBOS KERNELS SECUESTRADOS!\n¡El primero en entregar el suyo en su base gana!";
-        statusColor = Colors.orangeAccent;
-      } else if (gameState.whiteKernelKidnapper != null) {
-        statusText = "¡KERNEL BLANCO SECUESTRADO!\n¡El secuestrador negro intenta escapar!";
-        statusColor = Colors.redAccent;
-      } else {
-        statusText = "¡KERNEL NEGRO SECUESTRADO!\n¡El secuestrador blanco intenta escapar!";
-        statusColor = Colors.cyanAccent;
-      }
-    } else {
-      statusText = gameState.currentTurn == PieceColor.white ? "Turno: BLANCAS" : "Turno: NEGRAS";
-      statusColor = gameState.currentTurn == PieceColor.white ? Colors.white : Colors.grey;
-    }
-
-    final bool shouldRotate = gameState.currentTurn == PieceColor.black;
+    final bool shouldRotateBoard = gameState.currentTurn == PieceColor.black;
 
     return Scaffold(
       appBar: AppBar(
@@ -230,69 +203,193 @@ class GameScreen extends ConsumerWidget {
         ),
       ),
       body: Center(
-        child: RotatedBox(
-          quarterTurns: shouldRotate ? 2 : 0,
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  statusText,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: statusColor, fontSize: 20, fontWeight: FontWeight.bold),
+                // PANEL JUGADOR NEGRO (Arriba, rotado 180 grados para quedar de frente al oponente)
+                RotatedBox(
+                  quarterTurns: 2,
+                  child: _PlayerPanel(
+                    playerColor: PieceColor.black,
+                    gameState: gameState,
+                    ref: ref,
+                  ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
+                
+                // TABLERO DE JUEGO (Se rota 180 grados en el turno de las negras para que jueguen cómodamente)
                 ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 600, maxHeight: 600),
-                  child: const BoardView(),
+                  child: RotatedBox(
+                    quarterTurns: shouldRotateBoard ? 2 : 0,
+                    child: const BoardView(),
+                  ),
                 ),
-                const SizedBox(height: 20),
-                Wrap(
-                  spacing: 16.0,
-                  alignment: WrapAlignment.center,
-                  children: [
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        ref.read(gameProvider.notifier).state = GameState.initial(mode: gameState.gameMode);
-                      },
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Reiniciar'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1E2D3D),
-                        foregroundColor: Colors.greenAccent,
-                      ),
-                    ),
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        ref.read(gameProvider.notifier).toggleOverclock();
-                      },
-                      icon: const Icon(Icons.speed),
-                      label: Text(gameState.isOverclockActive ? 'OVERCLOCK ACTIVO' : 'Activar Overclock'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: gameState.isOverclockActive ? Colors.greenAccent : const Color(0xFF1E2D3D),
-                        foregroundColor: gameState.isOverclockActive ? Colors.black : Colors.amberAccent,
-                      ),
-                    ),
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        ref.read(gameProvider.notifier).toggleGhostMode();
-                      },
-                      icon: const Icon(Icons.my_location),
-                      label: Text(gameState.isGhostTargeting ? 'APUNTANDO...' : 'Usar Ghost'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: gameState.isGhostTargeting ? Colors.purpleAccent : const Color(0xFF1E2D3D),
-                        foregroundColor: gameState.isGhostTargeting ? Colors.white : Colors.purpleAccent,
-                      ),
-                    ),
-                  ],
+                const SizedBox(height: 16),
+                
+                // PANEL JUGADOR BLANCO (Abajo, vista estándar normal)
+                _PlayerPanel(
+                  playerColor: PieceColor.white,
+                  gameState: gameState,
+                  ref: ref,
                 ),
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _PlayerPanel extends StatelessWidget {
+  final PieceColor playerColor;
+  final GameState gameState;
+  final WidgetRef ref;
+
+  const _PlayerPanel({
+    required this.playerColor,
+    required this.gameState,
+    required this.ref,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isMyTurn = gameState.currentTurn == playerColor;
+    final isOverclockUsed = playerColor == PieceColor.white 
+        ? gameState.whiteOverclockUsed 
+        : gameState.blackOverclockUsed;
+
+    String statusText = "";
+    Color statusColor = Colors.white;
+
+    if (gameState.winner != null) {
+      statusText = "¡VICTORIA: ${gameState.winner!.name.toUpperCase()}!";
+      statusColor = Colors.greenAccent;
+    } else if (gameState.isKernelInDanger) {
+      statusText = "¡ALERTA CRÍTICA: KERNEL EXPUESTO!\n(Neutralizar la amenaza)";
+      statusColor = Colors.redAccent;
+    } else if (gameState.gameMode == GameMode.kidnapping &&
+        (gameState.whiteKernelKidnapper != null || gameState.blackKernelKidnapper != null)) {
+      if (gameState.whiteKernelKidnapper != null && gameState.blackKernelKidnapper != null) {
+        statusText = "¡AMBOS KERNELS SECUESTRADOS!\n¡Entrega el tuyo para ganar!";
+        statusColor = Colors.orangeAccent;
+      } else if (gameState.whiteKernelKidnapper != null) {
+        statusText = playerColor == PieceColor.white 
+            ? "¡TU KERNEL HA SIDO SECUESTRADO!" 
+            : "¡HAS SECUESTRADO EL KERNEL BLANCO!";
+        statusColor = playerColor == PieceColor.white ? Colors.redAccent : Colors.cyanAccent;
+      } else {
+        statusText = playerColor == PieceColor.black 
+            ? "¡TU KERNEL HA SIDO SECUESTRADO!" 
+            : "¡HAS SECUESTRADO EL KERNEL NEGRO!";
+        statusColor = playerColor == PieceColor.black ? Colors.redAccent : Colors.cyanAccent;
+      }
+    } else {
+      statusText = isMyTurn ? "TU TURNO" : "ESPERANDO AL OPONENTE...";
+      statusColor = isMyTurn ? Colors.greenAccent : Colors.grey;
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(12.0),
+      decoration: BoxDecoration(
+        color: isMyTurn ? const Color(0xFF161B22) : Colors.transparent,
+        border: Border.all(
+          color: isMyTurn ? Colors.greenAccent.withOpacity(0.3) : Colors.transparent,
+          width: 1.5,
         ),
+        borderRadius: BorderRadius.circular(8.0),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            statusText,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: statusColor, 
+              fontSize: 14, 
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.0,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 12.0,
+            runSpacing: 8.0,
+            alignment: WrapAlignment.center,
+            children: [
+              ElevatedButton.icon(
+                onPressed: isMyTurn ? () {
+                  ref.read(gameProvider.notifier).state = GameState.initial(mode: gameState.gameMode);
+                } : null,
+                icon: const Icon(Icons.refresh, size: 16),
+                label: const Text('Reiniciar', style: TextStyle(fontSize: 11)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1E2D3D),
+                  disabledBackgroundColor: Colors.transparent,
+                  disabledForegroundColor: Colors.grey.withOpacity(0.3),
+                  foregroundColor: Colors.greenAccent,
+                  side: isMyTurn ? const BorderSide(color: Colors.greenAccent, width: 0.5) : null,
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                ),
+              ),
+              ElevatedButton.icon(
+                onPressed: isMyTurn && !isOverclockUsed ? () {
+                  ref.read(gameProvider.notifier).toggleOverclock();
+                } : null,
+                icon: const Icon(Icons.speed, size: 16),
+                label: Text(
+                  isMyTurn && gameState.isOverclockActive 
+                      ? 'OVERCLOCK ACTIVO' 
+                      : isOverclockUsed 
+                          ? 'OVERCLOCK USADO' 
+                          : 'Activar Overclock',
+                  style: const TextStyle(fontSize: 11),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isMyTurn && gameState.isOverclockActive 
+                      ? Colors.greenAccent 
+                      : const Color(0xFF1E2D3D),
+                  disabledBackgroundColor: Colors.transparent,
+                  disabledForegroundColor: Colors.grey.withOpacity(0.3),
+                  foregroundColor: isMyTurn && gameState.isOverclockActive ? Colors.black : Colors.amberAccent,
+                  side: isMyTurn && !gameState.isOverclockActive && !isOverclockUsed 
+                      ? const BorderSide(color: Colors.amberAccent, width: 0.5) 
+                      : null,
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                ),
+              ),
+              ElevatedButton.icon(
+                onPressed: isMyTurn ? () {
+                  ref.read(gameProvider.notifier).toggleGhostMode();
+                } : null,
+                icon: const Icon(Icons.my_location, size: 16),
+                label: Text(
+                  isMyTurn && gameState.isGhostTargeting 
+                      ? 'APUNTANDO...' 
+                      : 'Usar Ghost',
+                  style: const TextStyle(fontSize: 11),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isMyTurn && gameState.isGhostTargeting 
+                      ? Colors.purpleAccent 
+                      : const Color(0xFF1E2D3D),
+                  disabledBackgroundColor: Colors.transparent,
+                  disabledForegroundColor: Colors.grey.withOpacity(0.3),
+                  foregroundColor: isMyTurn && gameState.isGhostTargeting ? Colors.white : Colors.purpleAccent,
+                  side: isMyTurn && !gameState.isGhostTargeting 
+                      ? const BorderSide(color: Colors.purpleAccent, width: 0.5) 
+                      : null,
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
