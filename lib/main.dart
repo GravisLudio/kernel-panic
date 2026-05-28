@@ -184,17 +184,32 @@ class MainMenuScreen extends ConsumerWidget {
   }
 }
 
-class GameScreen extends ConsumerWidget {
+class GameScreen extends StatelessWidget {
   const GameScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const _GameScreenContent();
+  }
+}
+
+class _GameScreenContent extends ConsumerWidget {
+  const _GameScreenContent();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final gameState = ref.watch(gameProvider);
-    final bool shouldRotateBoard = gameState.currentTurn == PieceColor.black;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('KERNEL PANIC', style: TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
+        title: const Text(
+          'KERNEL PANIC',
+          style: TextStyle(
+            color: Colors.greenAccent,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 2.0,
+          ),
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.greenAccent),
           onPressed: () {
@@ -202,41 +217,42 @@ class GameScreen extends ConsumerWidget {
           },
         ),
       ),
-      body: Center(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // PANEL JUGADOR NEGRO (Arriba, rotado 180 grados para quedar de frente al oponente)
-                RotatedBox(
-                  quarterTurns: 2,
-                  child: _PlayerPanel(
-                    playerColor: PieceColor.black,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            physics: const NeverScrollableScrollPhysics(), // Prevent vertical scrolling completely to keep it fully compact
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 16.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // PANEL JUGADOR NEGRO (Arriba, rotado 180 grados para quedar de frente al oponente)
+                  RotatedBox(
+                    quarterTurns: 2,
+                    child: _PlayerPanel(
+                      playerColor: PieceColor.black,
+                      gameState: gameState,
+                      ref: ref,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  
+                  // TABLERO DE JUEGO (Tablero estático y compacto para caber en una sola pantalla)
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 320, maxHeight: 320),
+                    child: const BoardView(),
+                  ),
+                  const SizedBox(height: 6),
+                  
+                  // PANEL JUGADOR BLANCO (Abajo, vista estándar normal)
+                  _PlayerPanel(
+                    playerColor: PieceColor.white,
                     gameState: gameState,
                     ref: ref,
                   ),
-                ),
-                const SizedBox(height: 16),
-                
-                // TABLERO DE JUEGO (Se rota 180 grados en el turno de las negras para que jueguen cómodamente)
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 600, maxHeight: 600),
-                  child: RotatedBox(
-                    quarterTurns: shouldRotateBoard ? 2 : 0,
-                    child: const BoardView(),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                
-                // PANEL JUGADOR BLANCO (Abajo, vista estándar normal)
-                _PlayerPanel(
-                  playerColor: PieceColor.white,
-                  gameState: gameState,
-                  ref: ref,
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -293,8 +309,12 @@ class _PlayerPanel extends StatelessWidget {
       statusColor = isMyTurn ? Colors.greenAccent : Colors.grey;
     }
 
+    final showButtons = isMyTurn || gameState.winner != null;
+
     return Container(
-      padding: const EdgeInsets.all(12.0),
+      padding: isMyTurn 
+          ? const EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0)
+          : const EdgeInsets.symmetric(vertical: 4.0, horizontal: 12.0),
       decoration: BoxDecoration(
         color: isMyTurn ? const Color(0xFF161B22) : Colors.transparent,
         border: Border.all(
@@ -311,84 +331,86 @@ class _PlayerPanel extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(
               color: statusColor, 
-              fontSize: 14, 
+              fontSize: 12, 
               fontWeight: FontWeight.bold,
               letterSpacing: 1.0,
             ),
           ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 12.0,
-            runSpacing: 8.0,
-            alignment: WrapAlignment.center,
-            children: [
-              ElevatedButton.icon(
-                onPressed: isMyTurn ? () {
-                  ref.read(gameProvider.notifier).state = GameState.initial(mode: gameState.gameMode);
-                } : null,
-                icon: const Icon(Icons.refresh, size: 16),
-                label: const Text('Reiniciar', style: TextStyle(fontSize: 11)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1E2D3D),
-                  disabledBackgroundColor: Colors.transparent,
-                  disabledForegroundColor: Colors.grey.withOpacity(0.3),
-                  foregroundColor: Colors.greenAccent,
-                  side: isMyTurn ? const BorderSide(color: Colors.greenAccent, width: 0.5) : null,
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          if (showButtons) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8.0,
+              runSpacing: 6.0,
+              alignment: WrapAlignment.center,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: () {
+                    ref.read(gameProvider.notifier).setGameMode(gameState.gameMode);
+                  },
+                  icon: const Icon(Icons.refresh, size: 14),
+                  label: const Text('Reiniciar', style: TextStyle(fontSize: 10)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1E2D3D),
+                    foregroundColor: Colors.greenAccent,
+                    side: const BorderSide(color: Colors.greenAccent, width: 0.5),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  ),
                 ),
-              ),
-              ElevatedButton.icon(
-                onPressed: isMyTurn && !isOverclockUsed ? () {
-                  ref.read(gameProvider.notifier).toggleOverclock();
-                } : null,
-                icon: const Icon(Icons.speed, size: 16),
-                label: Text(
-                  isMyTurn && gameState.isOverclockActive 
-                      ? 'OVERCLOCK ACTIVO' 
-                      : isOverclockUsed 
-                          ? 'OVERCLOCK USADO' 
-                          : 'Activar Overclock',
-                  style: const TextStyle(fontSize: 11),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: isMyTurn && gameState.isOverclockActive 
-                      ? Colors.greenAccent 
-                      : const Color(0xFF1E2D3D),
-                  disabledBackgroundColor: Colors.transparent,
-                  disabledForegroundColor: Colors.grey.withOpacity(0.3),
-                  foregroundColor: isMyTurn && gameState.isOverclockActive ? Colors.black : Colors.amberAccent,
-                  side: isMyTurn && !gameState.isOverclockActive && !isOverclockUsed 
-                      ? const BorderSide(color: Colors.amberAccent, width: 0.5) 
-                      : null,
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                ),
-              ),
-              ElevatedButton.icon(
-                onPressed: isMyTurn ? () {
-                  ref.read(gameProvider.notifier).toggleGhostMode();
-                } : null,
-                icon: const Icon(Icons.my_location, size: 16),
-                label: Text(
-                  isMyTurn && gameState.isGhostTargeting 
-                      ? 'APUNTANDO...' 
-                      : 'Usar Ghost',
-                  style: const TextStyle(fontSize: 11),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: isMyTurn && gameState.isGhostTargeting 
-                      ? Colors.purpleAccent 
-                      : const Color(0xFF1E2D3D),
-                  disabledBackgroundColor: Colors.transparent,
-                  disabledForegroundColor: Colors.grey.withOpacity(0.3),
-                  foregroundColor: isMyTurn && gameState.isGhostTargeting ? Colors.white : Colors.purpleAccent,
-                  side: isMyTurn && !gameState.isGhostTargeting 
-                      ? const BorderSide(color: Colors.purpleAccent, width: 0.5) 
-                      : null,
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                ),
-              ),
-            ],
-          ),
+                if (gameState.winner == null) ...[
+                  ElevatedButton.icon(
+                    onPressed: !isOverclockUsed ? () {
+                      ref.read(gameProvider.notifier).toggleOverclock();
+                    } : null,
+                    icon: const Icon(Icons.speed, size: 14),
+                    label: Text(
+                      gameState.isOverclockActive 
+                          ? 'OVERCLOCK ACTIVO' 
+                          : isOverclockUsed 
+                              ? 'OVERCLOCK USADO' 
+                              : 'Overclock',
+                      style: const TextStyle(fontSize: 10),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: gameState.isOverclockActive 
+                          ? Colors.greenAccent 
+                          : const Color(0xFF1E2D3D),
+                      disabledBackgroundColor: Colors.transparent,
+                      disabledForegroundColor: Colors.grey.withOpacity(0.3),
+                      foregroundColor: gameState.isOverclockActive ? Colors.black : Colors.amberAccent,
+                      side: !gameState.isOverclockActive && !isOverclockUsed 
+                          ? const BorderSide(color: Colors.amberAccent, width: 0.5) 
+                          : null,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      ref.read(gameProvider.notifier).toggleGhostMode();
+                    },
+                    icon: const Icon(Icons.my_location, size: 14),
+                    label: Text(
+                      gameState.isGhostTargeting 
+                          ? 'APUNTANDO...' 
+                          : 'Usar Ghost',
+                      style: const TextStyle(fontSize: 10),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: gameState.isGhostTargeting 
+                          ? Colors.purpleAccent 
+                          : const Color(0xFF1E2D3D),
+                      disabledBackgroundColor: Colors.transparent,
+                      disabledForegroundColor: Colors.grey.withOpacity(0.3),
+                      foregroundColor: gameState.isGhostTargeting ? Colors.white : Colors.purpleAccent,
+                      side: !gameState.isGhostTargeting 
+                          ? const BorderSide(color: Colors.purpleAccent, width: 0.5) 
+                          : null,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ],
         ],
       ),
     );

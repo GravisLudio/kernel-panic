@@ -44,7 +44,7 @@ class MoveValidator {
   }
 
   List<Position> _getKernelMoves(Position pos, Piece piece) {
-    // 1 casilla todas las direcciones + 2 casillas ortogonal
+    // 1 casilla todas las direcciones + 2 casillas ortogonal (si no hay pieza enfrente)
     List<Position> moves = [];
     final dirs = [
       [-1, -1], [0, -1], [1, -1],
@@ -54,12 +54,18 @@ class MoveValidator {
     for (var d in dirs) {
       moves.add(Position(pos.x + d[0], pos.y + d[1]));
     }
-    // Saltos ortogonales de 2
+    // Saltos ortogonales de 2 (bloqueados si hay una ficha a distancia 1)
     final jumpDirs = [
-      [0, -2], [0, 2], [-2, 0], [2, 0]
+      [0, -2, 0, -1], // [dx, dy, check_dx, check_dy]
+      [0, 2, 0, 1],
+      [-2, 0, -1, 0],
+      [2, 0, 1, 0]
     ];
     for (var d in jumpDirs) {
-      moves.add(Position(pos.x + d[0], pos.y + d[1]));
+      final intermediatePos = Position(pos.x + d[2], pos.y + d[3]);
+      if (board.isInsideBoard(intermediatePos) && board.getPieceAt(intermediatePos) == null) {
+        moves.add(Position(pos.x + d[0], pos.y + d[1]));
+      }
     }
     return moves;
   }
