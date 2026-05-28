@@ -177,14 +177,24 @@ class GameNotifier extends Notifier<GameState> {
 
   void toggleOverclock() {
     if (state.winner != null) return;
-    if (state.currentTurn == PieceColor.white && state.whiteOverclockUsed) return;
-    if (state.currentTurn == PieceColor.black && state.blackOverclockUsed) return;
 
-    state = state.copyWith(
-      isOverclockActive: true,
-      whiteOverclockUsed: state.currentTurn == PieceColor.white ? true : state.whiteOverclockUsed,
-      blackOverclockUsed: state.currentTurn == PieceColor.black ? true : state.blackOverclockUsed,
-    );
+    final isWhite = state.currentTurn == PieceColor.white;
+    final isAlreadyUsed = isWhite ? state.whiteOverclockUsed : state.blackOverclockUsed;
+
+    if (state.isOverclockActive) {
+      state = state.copyWith(
+        isOverclockActive: false,
+        whiteOverclockUsed: isWhite ? false : state.whiteOverclockUsed,
+        blackOverclockUsed: !isWhite ? false : state.blackOverclockUsed,
+      );
+    } else {
+      if (isAlreadyUsed) return;
+      state = state.copyWith(
+        isOverclockActive: true,
+        whiteOverclockUsed: isWhite ? true : state.whiteOverclockUsed,
+        blackOverclockUsed: !isWhite ? true : state.blackOverclockUsed,
+      );
+    }
   }
 
   void toggleGhostMode() {

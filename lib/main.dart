@@ -217,6 +217,70 @@ class GameScreen extends StatelessWidget {
 class _GameScreenContent extends ConsumerWidget {
   const _GameScreenContent();
 
+  void _showResetConfirmation(BuildContext context, WidgetRef ref, GameMode currentMode) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF0D1117),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8.0),
+          side: const BorderSide(color: Colors.redAccent, width: 1.5),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.redAccent),
+            SizedBox(width: 8),
+            Text(
+              'REINICIAR SISTEMA',
+              style: TextStyle(
+                color: Colors.redAccent,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.5,
+                fontSize: 18,
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          '¿Confirmar reinicio de red?\nSe perderá todo el progreso actual del tablero.',
+          style: TextStyle(
+            color: Colors.white,
+            fontFamily: 'monospace',
+            fontSize: 13,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'CANCELAR',
+              style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              ref.read(gameProvider.notifier).setGameMode(currentMode);
+              Navigator.pop(context);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent.withOpacity(0.2),
+              foregroundColor: Colors.redAccent,
+              side: const BorderSide(color: Colors.redAccent, width: 1),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(4.0),
+              ),
+            ),
+            child: const Text(
+              'CONFIRMAR',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final gameState = ref.watch(gameProvider);
@@ -237,6 +301,15 @@ class _GameScreenContent extends ConsumerWidget {
             Navigator.pop(context);
           },
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.redAccent),
+            tooltip: 'Reiniciar partida',
+            onPressed: () {
+              _showResetConfirmation(context, ref, gameState.gameMode);
+            },
+          ),
+        ],
       ),
       body: SafeArea(
         child: Center(
@@ -330,7 +403,7 @@ class _PlayerPanel extends StatelessWidget {
       statusColor = isMyTurn ? Colors.greenAccent : Colors.grey;
     }
 
-    final showButtons = isMyTurn || gameState.winner != null;
+    final showButtons = isMyTurn && gameState.winner == null;
 
     return Container(
       padding: isMyTurn 
@@ -365,70 +438,55 @@ class _PlayerPanel extends StatelessWidget {
               alignment: WrapAlignment.center,
               children: [
                 ElevatedButton.icon(
-                  onPressed: () {
-                    ref.read(gameProvider.notifier).setGameMode(gameState.gameMode);
-                  },
-                  icon: const Icon(Icons.refresh, size: 14),
-                  label: const Text('Reiniciar', style: TextStyle(fontSize: 10)),
+                  onPressed: (!isOverclockUsed || gameState.isOverclockActive) ? () {
+                    ref.read(gameProvider.notifier).toggleOverclock();
+                  } : null,
+                  icon: const Icon(Icons.speed, size: 14),
+                  label: Text(
+                    gameState.isOverclockActive 
+                        ? 'OVERCLOCK ACTIVO' 
+                        : isOverclockUsed 
+                            ? 'OVERCLOCK USADO' 
+                            : 'Overclock',
+                    style: const TextStyle(fontSize: 10),
+                  ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1E2D3D),
-                    foregroundColor: Colors.greenAccent,
-                    side: const BorderSide(color: Colors.greenAccent, width: 0.5),
+                    backgroundColor: gameState.isOverclockActive 
+                        ? Colors.greenAccent 
+                        : const Color(0xFF1E2D3D),
+                    disabledBackgroundColor: Colors.transparent,
+                    disabledForegroundColor: Colors.grey.withOpacity(0.3),
+                    foregroundColor: gameState.isOverclockActive ? Colors.black : Colors.amberAccent,
+                    side: !gameState.isOverclockActive && !isOverclockUsed 
+                        ? const BorderSide(color: Colors.amberAccent, width: 0.5) 
+                        : null,
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   ),
                 ),
-                if (gameState.winner == null) ...[
-                  ElevatedButton.icon(
-                    onPressed: !isOverclockUsed ? () {
-                      ref.read(gameProvider.notifier).toggleOverclock();
-                    } : null,
-                    icon: const Icon(Icons.speed, size: 14),
-                    label: Text(
-                      gameState.isOverclockActive 
-                          ? 'OVERCLOCK ACTIVO' 
-                          : isOverclockUsed 
-                              ? 'OVERCLOCK USADO' 
-                              : 'Overclock',
-                      style: const TextStyle(fontSize: 10),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: gameState.isOverclockActive 
-                          ? Colors.greenAccent 
-                          : const Color(0xFF1E2D3D),
-                      disabledBackgroundColor: Colors.transparent,
-                      disabledForegroundColor: Colors.grey.withOpacity(0.3),
-                      foregroundColor: gameState.isOverclockActive ? Colors.black : Colors.amberAccent,
-                      side: !gameState.isOverclockActive && !isOverclockUsed 
-                          ? const BorderSide(color: Colors.amberAccent, width: 0.5) 
-                          : null,
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    ),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    ref.read(gameProvider.notifier).toggleGhostMode();
+                  },
+                  icon: const Icon(Icons.my_location, size: 14),
+                  label: Text(
+                    gameState.isGhostTargeting 
+                        ? 'APUNTANDO...' 
+                        : 'Usar Ghost',
+                    style: const TextStyle(fontSize: 10),
                   ),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      ref.read(gameProvider.notifier).toggleGhostMode();
-                    },
-                    icon: const Icon(Icons.my_location, size: 14),
-                    label: Text(
-                      gameState.isGhostTargeting 
-                          ? 'APUNTANDO...' 
-                          : 'Usar Ghost',
-                      style: const TextStyle(fontSize: 10),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: gameState.isGhostTargeting 
-                          ? Colors.purpleAccent 
-                          : const Color(0xFF1E2D3D),
-                      disabledBackgroundColor: Colors.transparent,
-                      disabledForegroundColor: Colors.grey.withOpacity(0.3),
-                      foregroundColor: gameState.isGhostTargeting ? Colors.white : Colors.purpleAccent,
-                      side: !gameState.isGhostTargeting 
-                          ? const BorderSide(color: Colors.purpleAccent, width: 0.5) 
-                          : null,
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: gameState.isGhostTargeting 
+                        ? Colors.purpleAccent 
+                        : const Color(0xFF1E2D3D),
+                    disabledBackgroundColor: Colors.transparent,
+                    disabledForegroundColor: Colors.grey.withOpacity(0.3),
+                    foregroundColor: gameState.isGhostTargeting ? Colors.white : Colors.purpleAccent,
+                    side: !gameState.isGhostTargeting 
+                        ? const BorderSide(color: Colors.purpleAccent, width: 0.5) 
+                        : null,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   ),
-                ],
+                ),
               ],
             ),
           ],
