@@ -108,13 +108,7 @@ class MainMenuScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 20),
                       ElevatedButton(
-                        onPressed: () {
-                          ref.read(gameProvider.notifier).setGameMode(GameMode.assassination);
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => const GameScreen()),
-                          );
-                        },
+                        onPressed: () => _showGameModeSelection(context, ref, GameMode.assassination),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF1E2D3D),
                           foregroundColor: Colors.greenAccent,
@@ -137,13 +131,7 @@ class MainMenuScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 16),
                       ElevatedButton(
-                        onPressed: () {
-                          ref.read(gameProvider.notifier).setGameMode(GameMode.kidnapping);
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => const GameScreen()),
-                          );
-                        },
+                        onPressed: () => _showGameModeSelection(context, ref, GameMode.kidnapping),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF1E2D3D),
                           foregroundColor: Colors.amberAccent,
@@ -203,6 +191,497 @@ class MainMenuScreen extends ConsumerWidget {
       ),
     );
   }
+
+  void _showGameModeSelection(BuildContext context, WidgetRef ref, GameMode mode) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF0D1117),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16.0)),
+        side: BorderSide(color: Colors.greenAccent, width: 1.5),
+      ),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                mode == GameMode.assassination ? 'ENLACE: MODO ASESINATO' : 'ENLACE: CAPTURA Y EXTRACCIÓN',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.greenAccent,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 2.0,
+                  fontFamily: 'monospace',
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'SELECCIONAR PROTOCOLO DE CONEXIÓN',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontSize: 10,
+                  letterSpacing: 1.0,
+                  fontFamily: 'monospace',
+                ),
+              ),
+              const SizedBox(height: 24),
+              
+              // PVP Local
+              ElevatedButton.icon(
+                onPressed: () {
+                  ref.read(gameProvider.notifier).setGameMode(mode, isSoloMode: false);
+                  Navigator.pop(context); // cerrar bottom sheet
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const GameScreen()),
+                  );
+                },
+                icon: const Icon(Icons.compare_arrows),
+                label: const Text('RED LOCAL (PVP EN UN DISPOSITIVO)'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF161B22),
+                  foregroundColor: Colors.white,
+                  side: const BorderSide(color: Colors.white30, width: 1),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  textStyle: const TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(height: 16),
+              
+              // IA Solo Match
+              ElevatedButton.icon(
+                onPressed: () {
+                  _showIASelector(context, ref, mode);
+                },
+                icon: const Icon(Icons.android),
+                label: const Text('SISTEMA SOLITARIO (VS CORTAFUEGOS IA)'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF161B22),
+                  foregroundColor: Colors.greenAccent,
+                  side: const BorderSide(color: Colors.greenAccent, width: 1),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  textStyle: const TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(height: 16),
+              
+              // Multiplayer
+              ElevatedButton.icon(
+                onPressed: () {
+                  _showOnlineSelector(context, ref, mode);
+                },
+                icon: const Icon(Icons.wifi),
+                label: const Text('CONEXIÓN REMOTA (2 DISPOSITIVOS)'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF161B22),
+                  foregroundColor: Colors.cyanAccent,
+                  side: const BorderSide(color: Colors.cyanAccent, width: 1),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  textStyle: const TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showIASelector(BuildContext context, WidgetRef ref, GameMode mode) {
+    Navigator.pop(context); // cerrar bottom sheet anterior
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF0D1117),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16.0)),
+        side: BorderSide(color: Colors.greenAccent, width: 1.5),
+      ),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'DIFICULTAD DEL CORTAFUEGOS IA',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.greenAccent,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 2.0,
+                  fontFamily: 'monospace',
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        ref.read(gameProvider.notifier).setGameMode(mode, isSoloMode: true, botDifficulty: 1);
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const GameScreen()),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green.withOpacity(0.2),
+                        foregroundColor: Colors.greenAccent,
+                        side: const BorderSide(color: Colors.greenAccent, width: 1),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      child: const Text('FÁCIL', style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'monospace')),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        ref.read(gameProvider.notifier).setGameMode(mode, isSoloMode: true, botDifficulty: 2);
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const GameScreen()),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.amber.withOpacity(0.2),
+                        foregroundColor: Colors.amberAccent,
+                        side: const BorderSide(color: Colors.amberAccent, width: 1),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      child: const Text('MEDIO', style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'monospace')),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        ref.read(gameProvider.notifier).setGameMode(mode, isSoloMode: true, botDifficulty: 3);
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const GameScreen()),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red.withOpacity(0.2),
+                        foregroundColor: Colors.redAccent,
+                        side: const BorderSide(color: Colors.redAccent, width: 1),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      child: const Text('DIFÍCIL', style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'monospace')),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showOnlineSelector(BuildContext context, WidgetRef ref, GameMode mode) {
+    Navigator.pop(context); // cerrar bottom sheet anterior
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF0D1117),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16.0)),
+        side: BorderSide(color: Colors.cyanAccent, width: 1.5),
+      ),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'CONEXIÓN REMOTA (ONLINE)',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.cyanAccent,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 2.0,
+                  fontFamily: 'monospace',
+                ),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: () async {
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (context) => const Center(child: CircularProgressIndicator(color: Colors.cyanAccent)),
+                  );
+                  await ref.read(gameProvider.notifier).createOnlineMatch(mode);
+                  Navigator.pop(context); // cerrar loader
+                  
+                  if (context.mounted) {
+                    _showWaitingRoomDialog(context, ref, mode);
+                  }
+                },
+                icon: const Icon(Icons.add_circle_outline),
+                label: const Text('CREAR CANAL (HOST)'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.cyanAccent.withOpacity(0.1),
+                  foregroundColor: Colors.cyanAccent,
+                  side: const BorderSide(color: Colors.cyanAccent, width: 1),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  textStyle: const TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: () {
+                  _showJoinRoomDialog(context, ref, mode);
+                },
+                icon: const Icon(Icons.login),
+                label: const Text('UNIRSE A CANAL (CLIENTE)'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF161B22),
+                  foregroundColor: Colors.white,
+                  side: const BorderSide(color: Colors.white30, width: 1),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  textStyle: const TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showWaitingRoomDialog(BuildContext context, WidgetRef ref, GameMode mode) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return Consumer(
+          builder: (context, ref, _) {
+            final gameState = ref.watch(gameProvider);
+            if (gameState.opponentPresent) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                Navigator.pop(context); // cerrar este diálogo
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const GameScreen()),
+                );
+              });
+            }
+            return AlertDialog(
+              backgroundColor: const Color(0xFF0D1117),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8.0),
+                side: const BorderSide(color: Colors.greenAccent, width: 1.5),
+              ),
+              title: const Text(
+                'ESPERANDO CONEXIÓN DEL INTRUSO',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.greenAccent,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.5,
+                  fontSize: 16,
+                  fontFamily: 'monospace',
+                ),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 10),
+                  const Text(
+                    'COMPARTE EL CÓDIGO DE ENLACE:',
+                    style: TextStyle(color: Colors.white, fontSize: 12, fontFamily: 'monospace'),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF161B22),
+                      border: Border.all(color: Colors.greenAccent.withOpacity(0.5)),
+                      borderRadius: BorderRadius.circular(4.0),
+                    ),
+                    child: Text(
+                      gameState.matchCode ?? '...',
+                      style: const TextStyle(
+                        color: Colors.cyanAccent,
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 8.0,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  const CircularProgressIndicator(color: Colors.greenAccent),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'ESTABLECIENDO CONEXIÓN REMOTA...',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey, fontSize: 10, fontFamily: 'monospace'),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    ref.read(gameProvider.notifier).disconnectOnlineMatch();
+                    Navigator.pop(context);
+                  },
+                  child: const Text(
+                    'CANCELAR ENLACE',
+                    style: TextStyle(color: Colors.redAccent, fontFamily: 'monospace', fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showJoinRoomDialog(BuildContext context, WidgetRef ref, GameMode mode) {
+    final controller = TextEditingController();
+    bool isLoading = false;
+    String? errorMessage;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF0D1117),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8.0),
+                side: const BorderSide(color: Colors.cyanAccent, width: 1.5),
+              ),
+              title: const Text(
+                'CONEXIÓN REMOTA (CLIENTE)',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.cyanAccent,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.5,
+                  fontSize: 16,
+                  fontFamily: 'monospace',
+                ),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'INGRESA EL CÓDIGO DE ENLACE DE 4 DÍGITOS:',
+                    style: TextStyle(color: Colors.white, fontSize: 11, fontFamily: 'monospace'),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: controller,
+                    keyboardType: TextInputType.number,
+                    maxLength: 4,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.cyanAccent,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 6.0,
+                      fontFamily: 'monospace',
+                    ),
+                    decoration: InputDecoration(
+                      counterText: '',
+                      hintText: '0000',
+                      hintStyle: TextStyle(color: Colors.cyanAccent.withOpacity(0.3)),
+                      enabledBorder: const OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.cyanAccent),
+                      ),
+                      focusedBorder: const OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.greenAccent, width: 2),
+                      ),
+                    ),
+                  ),
+                  if (errorMessage != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      errorMessage!,
+                      style: const TextStyle(color: Colors.redAccent, fontSize: 11, fontFamily: 'monospace'),
+                    ),
+                  ],
+                  if (isLoading) ...[
+                    const SizedBox(height: 16),
+                    const CircularProgressIndicator(color: Colors.cyanAccent),
+                  ],
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isLoading ? null : () => Navigator.pop(context),
+                  child: const Text(
+                    'CANCELAR',
+                    style: TextStyle(color: Colors.grey, fontFamily: 'monospace'),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: isLoading
+                      ? null
+                      : () async {
+                          final code = controller.text.trim();
+                          if (code.length != 4) {
+                            setState(() {
+                              errorMessage = 'EL CÓDIGO DEBE SER DE 4 DÍGITOS';
+                            });
+                            return;
+                          }
+                          setState(() {
+                            isLoading = true;
+                            errorMessage = null;
+                          });
+                          
+                          final success = await ref.read(gameProvider.notifier).joinOnlineMatch(code);
+                          
+                          if (success) {
+                            Navigator.pop(context); // cerrar diálogo de unirse
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => const GameScreen()),
+                            );
+                          } else {
+                            setState(() {
+                              isLoading = false;
+                              errorMessage = 'SALA LLENA, EN JUEGO O INEXISTENTE';
+                            });
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.cyanAccent.withOpacity(0.2),
+                    foregroundColor: Colors.cyanAccent,
+                    side: const BorderSide(color: Colors.cyanAccent, width: 1),
+                  ),
+                  child: const Text(
+                    'CONECTAR',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'monospace'),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
 }
 
 class GameScreen extends StatelessWidget {
@@ -217,7 +696,8 @@ class GameScreen extends StatelessWidget {
 class _GameScreenContent extends ConsumerWidget {
   const _GameScreenContent();
 
-  void _showResetConfirmation(BuildContext context, WidgetRef ref, GameMode currentMode) {
+  void _showResetConfirmation(BuildContext context, WidgetRef ref, GameState gameState) {
+    final isMultiplayer = gameState.isMultiplayer;
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -225,26 +705,35 @@ class _GameScreenContent extends ConsumerWidget {
         backgroundColor: const Color(0xFF0D1117),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8.0),
-          side: const BorderSide(color: Colors.redAccent, width: 1.5),
+          side: BorderSide(
+            color: isMultiplayer ? Colors.cyanAccent : Colors.redAccent,
+            width: 1.5,
+          ),
         ),
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.warning_amber_rounded, color: Colors.redAccent),
-            SizedBox(width: 8),
+            Icon(
+              isMultiplayer ? Icons.power_settings_new : Icons.warning_amber_rounded,
+              color: isMultiplayer ? Colors.cyanAccent : Colors.redAccent,
+            ),
+            const SizedBox(width: 8),
             Text(
-              'REINICIAR SISTEMA',
+              isMultiplayer ? 'DESCONECTAR' : 'REINICIAR SISTEMA',
               style: TextStyle(
-                color: Colors.redAccent,
+                color: isMultiplayer ? Colors.cyanAccent : Colors.redAccent,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 1.5,
                 fontSize: 18,
+                fontFamily: 'monospace',
               ),
             ),
           ],
         ),
-        content: const Text(
-          '¿Confirmar reinicio de red?\nSe perderá todo el progreso actual del tablero.',
-          style: TextStyle(
+        content: Text(
+          isMultiplayer
+              ? '¿Confirmar reinicio de red?\nSe desconectará del canal y volverá al menú principal.'
+              : '¿Confirmar reinicio?\nSe perderá todo el progreso actual del tablero.',
+          style: const TextStyle(
             color: Colors.white,
             fontFamily: 'monospace',
             fontSize: 13,
@@ -255,25 +744,31 @@ class _GameScreenContent extends ConsumerWidget {
             onPressed: () => Navigator.pop(context),
             child: const Text(
               'CANCELAR',
-              style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
+              style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold, fontFamily: 'monospace'),
             ),
           ),
           ElevatedButton(
             onPressed: () {
-              ref.read(gameProvider.notifier).setGameMode(currentMode);
-              Navigator.pop(context);
+              if (isMultiplayer) {
+                ref.read(gameProvider.notifier).disconnectOnlineMatch();
+                Navigator.pop(context); // pop dialog
+                Navigator.pop(context); // pop GameScreen
+              } else {
+                ref.read(gameProvider.notifier).setGameMode(gameState.gameMode);
+                Navigator.pop(context); // pop dialog
+              }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.redAccent.withOpacity(0.2),
-              foregroundColor: Colors.redAccent,
-              side: const BorderSide(color: Colors.redAccent, width: 1),
+              backgroundColor: (isMultiplayer ? Colors.cyanAccent : Colors.redAccent).withOpacity(0.2),
+              foregroundColor: isMultiplayer ? Colors.cyanAccent : Colors.redAccent,
+              side: BorderSide(color: isMultiplayer ? Colors.cyanAccent : Colors.redAccent, width: 1),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(4.0),
               ),
             ),
             child: const Text(
               'CONFIRMAR',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'monospace'),
             ),
           ),
         ],
@@ -285,32 +780,47 @@ class _GameScreenContent extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final gameState = ref.watch(gameProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'KERNEL PANIC',
-          style: TextStyle(
-            color: Colors.greenAccent,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 2.0,
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) {
+        if (didPop) return;
+        if (gameState.isMultiplayer) {
+          ref.read(gameProvider.notifier).disconnectOnlineMatch();
+        }
+        Navigator.pop(context);
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text(
+            'KERNEL PANIC',
+            style: TextStyle(
+              color: Colors.greenAccent,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 2.0,
+            ),
           ),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.greenAccent),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.redAccent),
-            tooltip: 'Reiniciar partida',
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.greenAccent),
             onPressed: () {
-              _showResetConfirmation(context, ref, gameState.gameMode);
+              if (gameState.isMultiplayer) {
+                ref.read(gameProvider.notifier).disconnectOnlineMatch();
+              }
+              Navigator.pop(context);
             },
           ),
-        ],
-      ),
+          actions: [
+            IconButton(
+              icon: Icon(
+                gameState.isMultiplayer ? Icons.power_settings_new : Icons.refresh,
+                color: gameState.isMultiplayer ? Colors.cyanAccent : Colors.redAccent,
+              ),
+              tooltip: gameState.isMultiplayer ? 'Desconectar partida' : 'Reiniciar partida',
+              onPressed: () {
+                _showResetConfirmation(context, ref, gameState);
+              },
+            ),
+          ],
+        ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -351,8 +861,9 @@ class _GameScreenContent extends ConsumerWidget {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 class _PlayerPanel extends StatelessWidget {

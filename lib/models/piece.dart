@@ -45,4 +45,28 @@ class Piece {
       jumpsRemaining: jumpsRemaining ?? this.jumpsRemaining,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'type': type.name,
+      'color': color.name,
+      'hasGhost': hasGhost,
+      'hasUsedGhost': hasUsedGhost,
+      'scriptDir': scriptDir,
+      'jumpsRemaining': jumpsRemaining,
+    };
+  }
+
+  factory Piece.fromJson(Map<dynamic, dynamic> json) {
+    return Piece(
+      id: json['id'] as String,
+      type: PieceType.values.firstWhere((e) => e.name == json['type']),
+      color: PieceColor.values.firstWhere((e) => e.name == json['color']),
+      hasGhost: json['hasGhost'] as bool? ?? false,
+      hasUsedGhost: json['hasUsedGhost'] as bool? ?? false,
+      scriptDir: json['scriptDir'] as int? ?? 1,
+      jumpsRemaining: json['jumpsRemaining'] as int? ?? 2,
+    );
+  }
 }

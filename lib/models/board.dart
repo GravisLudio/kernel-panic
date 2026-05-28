@@ -50,4 +50,26 @@ class Board {
 
     return Board(pieces: p);
   }
+
+  List<Map<String, dynamic>> toJson() {
+    return pieces.entries.map((entry) {
+      return {
+        'x': entry.key.x,
+        'y': entry.key.y,
+        'piece': entry.value.toJson(),
+      };
+    }).toList();
+  }
+
+  factory Board.fromJson(List<dynamic> jsonList) {
+    final Map<Position, Piece> pieces = {};
+    for (var item in jsonList) {
+      final map = item as Map<dynamic, dynamic>;
+      final x = map['x'] as int;
+      final y = map['y'] as int;
+      final piece = Piece.fromJson(map['piece'] as Map<dynamic, dynamic>);
+      pieces[Position(x, y)] = piece;
+    }
+    return Board(pieces: pieces);
+  }
 }

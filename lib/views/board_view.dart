@@ -11,139 +11,145 @@ class BoardView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final gameState = ref.watch(gameProvider);
     final board = gameState.board;
+    final isInteractionLocked = 
+        (gameState.isSoloMode && gameState.currentTurn == PieceColor.black && gameState.winner == null) ||
+        (gameState.isMultiplayer && gameState.currentTurn != gameState.myColor && gameState.winner == null);
 
-    return AspectRatio(
-      aspectRatio: 1.0,
-      child: Container(
-        padding: const EdgeInsets.all(4.0),
-        decoration: BoxDecoration(
-          color: Colors.black87,
-          border: Border.all(color: Colors.greenAccent, width: 2),
-        ),
-        child: GridView.builder(
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 8,
+    return IgnorePointer(
+      ignoring: isInteractionLocked,
+      child: AspectRatio(
+        aspectRatio: 1.0,
+        child: Container(
+          padding: const EdgeInsets.all(4.0),
+          decoration: BoxDecoration(
+            color: Colors.black87,
+            border: Border.all(color: Colors.greenAccent, width: 2),
           ),
-          itemCount: 64,
-          itemBuilder: (context, index) {
-            final x = index % 8;
-            final y = index ~/ 8;
-            final position = Position(x, y);
+          child: GridView.builder(
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 8,
+            ),
+            itemCount: 64,
+            itemBuilder: (context, index) {
+              final x = index % 8;
+              final y = index ~/ 8;
+              final position = Position(x, y);
 
-            final piece = board.getPieceAt(position);
-            final isRootZone = board.isRootZone(position);
-            
-            // Colores tipo ajedrez pero estilo hacker
-            final isDarkSquare = (x + y) % 2 == 1;
-            final squareColor = isRootZone
-                ? Colors.purple.withOpacity(0.3)
-                : isDarkSquare
-                    ? const Color(0xFF1E2D3D)
-                    : const Color(0xFF2D3E50);
+              final piece = board.getPieceAt(position);
+              final isRootZone = board.isRootZone(position);
+              
+              // Colores tipo ajedrez pero estilo hacker
+              final isDarkSquare = (x + y) % 2 == 1;
+              final squareColor = isRootZone
+                  ? Colors.purple.withOpacity(0.3)
+                  : isDarkSquare
+                      ? const Color(0xFF1E2D3D)
+                      : const Color(0xFF2D3E50);
 
-            final isGhostTargeting = gameState.isGhostTargeting;
-            final ghostSource = gameState.ghostSourcePosition;
+              final isGhostTargeting = gameState.isGhostTargeting;
+              final ghostSource = gameState.ghostSourcePosition;
 
-            bool isGhostSelectableDaemon = false;
-            bool isGhostValidTarget = false;
+              bool isGhostSelectableDaemon = false;
+              bool isGhostValidTarget = false;
 
-            if (isGhostTargeting) {
-              if (ghostSource == null) {
-                if (piece != null && piece.type == PieceType.daemon && piece.color == gameState.currentTurn && !piece.hasUsedGhost) {
-                  isGhostSelectableDaemon = true;
-                }
-              } else {
-                if (position == ghostSource) {
-                  isGhostSelectableDaemon = true; // El origen seleccionado
-                } else if (piece != null && piece.color != gameState.currentTurn && piece.type != PieceType.kernel && piece.type != PieceType.firewall && !isRootZone) {
-                  isGhostValidTarget = true;
+              if (isGhostTargeting) {
+                if (ghostSource == null) {
+                  if (piece != null && piece.type == PieceType.daemon && piece.color == gameState.currentTurn && !piece.hasUsedGhost) {
+                    isGhostSelectableDaemon = true;
+                  }
+                } else {
+                  if (position == ghostSource) {
+                    isGhostSelectableDaemon = true; // El origen seleccionado
+                  } else if (piece != null && piece.color != gameState.currentTurn && piece.type != PieceType.kernel && piece.type != PieceType.firewall && !isRootZone) {
+                    isGhostValidTarget = true;
+                  }
                 }
               }
-            }
 
-            final selectedPos = gameState.selectedPosition;
-            final isSelected = selectedPos == position;
-            final isMoveTarget = selectedPos != null &&
-                ref.read(gameProvider.notifier).getValidMovesFor(selectedPos).contains(position);
+              final selectedPos = gameState.selectedPosition;
+              final isSelected = selectedPos == position;
+              final isMoveTarget = selectedPos != null &&
+                  ref.read(gameProvider.notifier).getValidMovesFor(selectedPos).contains(position);
 
-            Color highlightColor = Colors.transparent;
-            
-            Widget squareContent = DragTarget<Position>(
-              onWillAcceptWithDetails: (details) {
-                if (isGhostTargeting) return false; // No se puede arrastrar si estamos apuntando
-                return ref.read(gameProvider.notifier).canMovePiece(details.data, position);
-              },
-              onAcceptWithDetails: (details) {
-                ref.read(gameProvider.notifier).movePiece(details.data, position);
-              },
-              builder: (context, candidateData, rejectedData) {
-                if (isGhostTargeting) {
-                  if (isGhostSelectableDaemon && ghostSource != null) highlightColor = Colors.greenAccent; // Seleccionado
-                  else if (isGhostSelectableDaemon) highlightColor = Colors.purpleAccent; // Seleccionable
-                  else if (isGhostValidTarget) highlightColor = Colors.redAccent; // Blanco válido
-                  else highlightColor = Colors.transparent; // No marcar nada más
-                } else {
-                  if (isSelected) highlightColor = Colors.cyanAccent;
-                  else if (isMoveTarget && piece != null) highlightColor = Colors.redAccent; // Captura
-                  else if (candidateData.isNotEmpty) highlightColor = Colors.greenAccent;
-                  else if (rejectedData.isNotEmpty) highlightColor = Colors.redAccent;
-                }
+              Color highlightColor = Colors.transparent;
+              
+              Widget squareContent = DragTarget<Position>(
+                onWillAcceptWithDetails: (details) {
+                  if (isGhostTargeting) return false; // No se puede arrastrar si estamos apuntando
+                  return ref.read(gameProvider.notifier).canMovePiece(details.data, position);
+                },
+                onAcceptWithDetails: (details) {
+                  ref.read(gameProvider.notifier).movePiece(details.data, position);
+                },
+                builder: (context, candidateData, rejectedData) {
+                  if (isGhostTargeting) {
+                    if (isGhostSelectableDaemon && ghostSource != null) highlightColor = Colors.greenAccent; // Seleccionado
+                    else if (isGhostSelectableDaemon) highlightColor = Colors.purpleAccent; // Seleccionable
+                    else if (isGhostValidTarget) highlightColor = Colors.redAccent; // Blanco válido
+                    else highlightColor = Colors.transparent; // No marcar nada más
+                  } else {
+                    if (isSelected) highlightColor = Colors.cyanAccent;
+                    else if (isMoveTarget && piece != null) highlightColor = Colors.redAccent; // Captura
+                    else if (candidateData.isNotEmpty) highlightColor = Colors.greenAccent;
+                    else if (rejectedData.isNotEmpty) highlightColor = Colors.redAccent;
+                  }
 
-                return Container(
-                  margin: const EdgeInsets.all(1.0),
-                  decoration: BoxDecoration(
-                    color: squareColor,
-                    border: Border.all(
-                      color: highlightColor,
-                      width: 2,
+                  return Container(
+                    margin: const EdgeInsets.all(1.0),
+                    decoration: BoxDecoration(
+                      color: squareColor,
+                      border: Border.all(
+                        color: highlightColor,
+                        width: 2,
+                      ),
                     ),
-                  ),
-                  child: piece != null
-                      ? Draggable<Position>(
-                          data: position,
-                          maxSimultaneousDrags: (!isGhostTargeting && piece.color == gameState.currentTurn) ? 1 : 0, 
-                          feedback: _PieceWidget(piece: piece, size: 50),
-                          childWhenDragging: Opacity(
-                            opacity: 0.3,
+                    child: piece != null
+                        ? Draggable<Position>(
+                            data: position,
+                            maxSimultaneousDrags: (!isGhostTargeting && piece.color == gameState.currentTurn) ? 1 : 0, 
+                            feedback: _PieceWidget(piece: piece, size: 50),
+                            childWhenDragging: Opacity(
+                              opacity: 0.3,
+                              child: _PieceWidget(piece: piece),
+                            ),
                             child: _PieceWidget(piece: piece),
-                          ),
-                          child: _PieceWidget(piece: piece),
-                        )
-                      : (isMoveTarget
-                          ? Center(
-                              child: Container(
-                                width: 14,
-                                height: 14,
-                                decoration: BoxDecoration(
-                                  color: Colors.greenAccent.withOpacity(0.6),
-                                  shape: BoxShape.circle,
-                                  boxShadow: const [
-                                    BoxShadow(
-                                      color: Colors.greenAccent,
-                                      blurRadius: 6,
-                                      spreadRadius: 1,
-                                    ),
-                                  ],
+                          )
+                        : (isMoveTarget
+                            ? Center(
+                                child: Container(
+                                  width: 14,
+                                  height: 14,
+                                  decoration: BoxDecoration(
+                                    color: Colors.greenAccent.withOpacity(0.6),
+                                    shape: BoxShape.circle,
+                                    boxShadow: const [
+                                      BoxShadow(
+                                        color: Colors.greenAccent,
+                                        blurRadius: 6,
+                                        spreadRadius: 1,
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            )
-                          : null),
-                );
-              },
-            );
+                              )
+                            : null),
+                  );
+                },
+              );
 
-            return GestureDetector(
-              onTap: () {
-                if (isGhostTargeting) {
-                  ref.read(gameProvider.notifier).useGhostOn(position);
-                } else {
-                  ref.read(gameProvider.notifier).selectPosition(position);
-                }
-              },
-              child: squareContent,
-            );
-          },
+              return GestureDetector(
+                onTap: () {
+                  if (isGhostTargeting) {
+                    ref.read(gameProvider.notifier).useGhostOn(position);
+                  } else {
+                    ref.read(gameProvider.notifier).selectPosition(position);
+                  }
+                },
+                child: squareContent,
+              );
+            },
+          ),
         ),
       ),
     );

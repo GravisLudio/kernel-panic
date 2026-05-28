@@ -1,13 +1,23 @@
+import 'dart:async';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/board.dart';
 import '../models/game_state.dart';
 import '../models/position.dart';
 import '../models/piece.dart';
 import '../logic/move_validator.dart';
+import '../logic/bot_logic.dart';
 
 class GameNotifier extends Notifier<GameState> {
+  StreamSubscription<DatabaseEvent>? _matchSubscription;
+  bool _isWritingToFirebase = false;
+
   @override
   GameState build() {
+    // Cancelar cualquier suscripción residual al reconstruir
+    ref.onDispose(() {
+      _matchSubscription?.cancel();
+    });
     return GameState.initial();
   }
 
@@ -172,6 +182,12 @@ class GameNotifier extends Notifier<GameState> {
         winner: winner,
         clearSelectedPosition: true,
       );
+
+      if (state.isMultiplayer) {
+        _syncStateToFirebase();
+      } else {
+        _triggerBotMoveIfNeeded();
+      }
     }
   }
 
@@ -194,6 +210,10 @@ class GameNotifier extends Notifier<GameState> {
         whiteOverclockUsed: isWhite ? true : state.whiteOverclockUsed,
         blackOverclockUsed: !isWhite ? true : state.blackOverclockUsed,
       );
+    }
+    
+    if (state.isMultiplayer) {
+      _syncStateToFirebase();
     }
   }
 
@@ -324,6 +344,12 @@ class GameNotifier extends Notifier<GameState> {
       blackKernelKidnapper: blackKernelKidnapper,
       clearSelectedPosition: true,
     );
+
+    if (state.isMultiplayer) {
+      _syncStateToFirebase();
+    } else {
+      _triggerBotMoveIfNeeded();
+    }
   }
 
   void _reviveKernel(Map<Position, Piece> pieces, PieceColor color, Position capturedAt) {
@@ -448,8 +474,311 @@ class GameNotifier extends Notifier<GameState> {
     }
   }
 
-  void setGameMode(GameMode mode) {
-    state = GameState.initial(mode: mode);
+  void setGameMode(GameMode mode, {bool? isSoloMode, int? botDifficulty}) {
+    state = GameState.initial(
+      mode: mode,
+      isSoloMode: isSoloMode ?? state.isSoloMode,
+      botDifficulty: botDifficulty ?? state.botDifficulty,
+    );
+  }
+
+  bool _isBotRunning = false;
+
+  void _triggerBotMoveIfNeeded() async {
+    if (!state.isSoloMode || state.currentTurn != PieceColor.black || state.winner != null) return;
+    if (_isBotRunning) return;
+    _isBotRunning = true;
+
+    try {
+      await Future.delayed(const Duration(milliseconds: 750));
+      if (state.winner != null || state.currentTurn != PieceColor.black) {
+        _isBotRunning = false;
+        return;
+      }
+
+      final validator = MoveValidator(state.board);
+      final normalMoves = <MapEntry<Position, Position>>[];
+      for (var entry in state.board.pieces.entries) {
+        if (entry.value.color == PieceColor.black) {
+          final destinations = validator.getValidMoves(entry.key);
+          for (var dest in destinations) {
+            normalMoves.add(MapEntry(entry.key, dest));
+          }
+        }
+      }
+
+      final ghostMoves = <MapEntry<Position, Position>>[];
+      final daemons = state.board.pieces.entries.where(
+        (e) => e.value.type == PieceType.daemon && e.value.color == PieceColor.black && !e.value.hasUsedGhost
+      );
+      if (daemons.isNotEmpty) {
+        for (var daemonEntry in daemons) {
+          for (var entry in state.board.pieces.entries) {
+            final targetPos = entry.key;
+            final targetPiece = entry.value;
+            if (targetPiece.color == PieceColor.white &&
+                targetPiece.type != PieceType.kernel &&
+                targetPiece.type != PieceType.firewall &&
+                !state.board.isRootZone(targetPos)) {
+              ghostMoves.add(MapEntry(daemonEntry.key, targetPos));
+            }
+          }
+        }
+      }
+
+      final decision = BotLogic.calculateMove(
+        state: state,
+        validMoves: normalMoves,
+        validGhostMoves: ghostMoves,
+      );
+
+      if (decision == null) {
+        _isBotRunning = false;
+        return;
+      }
+
+      final String action = decision['action'];
+      final Position from = decision['from'];
+      final Position to = decision['to'];
+      final bool useOverclock = decision['useOverclock'] ?? false;
+
+      if (action == 'ghost') {
+        state = state.copyWith(isGhostTargeting: true, ghostSourcePosition: from);
+        await Future.delayed(const Duration(milliseconds: 300));
+        useGhostOn(to);
+      } else {
+        if (useOverclock && !state.blackOverclockUsed && !state.isOverclockActive) {
+          toggleOverclock();
+          await Future.delayed(const Duration(milliseconds: 350));
+        }
+        movePiece(from, to);
+      }
+    } catch (e) {
+      // Manejo silencioso
+    } finally {
+      _isBotRunning = false;
+      if (state.currentTurn == PieceColor.black && state.winner == null) {
+        _triggerBotMoveIfNeeded();
+      }
+    }
+  }
+
+  Map<String, dynamic> stateToJson(GameState state) {
+    return {
+      'currentTurn': state.currentTurn.name,
+      'gameMode': state.gameMode.name,
+      'winner': state.winner?.name,
+      'isKernelInDanger': state.isKernelInDanger,
+      'attackerPosition': state.attackerPosition == null ? null : {'x': state.attackerPosition!.x, 'y': state.attackerPosition!.y},
+      'whiteKernelKidnapper': state.whiteKernelKidnapper == null ? null : {'x': state.whiteKernelKidnapper!.x, 'y': state.whiteKernelKidnapper!.y},
+      'blackKernelKidnapper': state.blackKernelKidnapper == null ? null : {'x': state.blackKernelKidnapper!.x, 'y': state.blackKernelKidnapper!.y},
+      'whiteOverclockUsed': state.whiteOverclockUsed,
+      'blackOverclockUsed': state.blackOverclockUsed,
+      'isOverclockActive': state.isOverclockActive,
+      'board': state.board.toJson(),
+    };
+  }
+
+  GameState loadStateFromFirebase(GameState current, Map<dynamic, dynamic> data) {
+    final boardJson = data['board'] as List<dynamic>;
+    final newBoard = Board.fromJson(boardJson);
+    final currentTurn = PieceColor.values.firstWhere((e) => e.name == data['currentTurn']);
+    
+    final winnerStr = data['winner'] as String?;
+    final winner = winnerStr == null ? null : PieceColor.values.firstWhere((e) => e.name == winnerStr);
+
+    Position? attackerPosition;
+    if (data['attackerPosition'] != null) {
+      final ap = data['attackerPosition'] as Map<dynamic, dynamic>;
+      attackerPosition = Position(ap['x'] as int, ap['y'] as int);
+    }
+
+    Position? whiteKernelKidnapper;
+    if (data['whiteKernelKidnapper'] != null) {
+      final wkk = data['whiteKernelKidnapper'] as Map<dynamic, dynamic>;
+      whiteKernelKidnapper = Position(wkk['x'] as int, wkk['y'] as int);
+    }
+
+    Position? blackKernelKidnapper;
+    if (data['blackKernelKidnapper'] != null) {
+      final bkk = data['blackKernelKidnapper'] as Map<dynamic, dynamic>;
+      blackKernelKidnapper = Position(bkk['x'] as int, bkk['y'] as int);
+    }
+
+    return current.copyWith(
+      board: newBoard,
+      currentTurn: currentTurn,
+      winner: winner,
+      isKernelInDanger: data['isKernelInDanger'] as bool? ?? false,
+      attackerPosition: attackerPosition,
+      whiteKernelKidnapper: whiteKernelKidnapper,
+      blackKernelKidnapper: blackKernelKidnapper,
+      clearAttacker: attackerPosition == null,
+      clearWhiteKidnapper: whiteKernelKidnapper == null,
+      clearBlackKidnapper: blackKernelKidnapper == null,
+      whiteOverclockUsed: data['whiteOverclockUsed'] as bool? ?? false,
+      blackOverclockUsed: data['blackOverclockUsed'] as bool? ?? false,
+      isOverclockActive: data['isOverclockActive'] as bool? ?? false,
+      clearSelectedPosition: current.currentTurn != currentTurn,
+    );
+  }
+
+  bool _areStatesEqual(GameState a, GameState b) {
+    if (a.currentTurn != b.currentTurn) return false;
+    if (a.winner != b.winner) return false;
+    if (a.isKernelInDanger != b.isKernelInDanger) return false;
+    if (a.isOverclockActive != b.isOverclockActive) return false;
+    if (a.whiteOverclockUsed != b.whiteOverclockUsed) return false;
+    if (a.blackOverclockUsed != b.blackOverclockUsed) return false;
+    if (a.board.pieces.length != b.board.pieces.length) return false;
+    for (var entry in a.board.pieces.entries) {
+      final otherPiece = b.board.pieces[entry.key];
+      if (otherPiece == null) return false;
+      if (otherPiece.id != entry.value.id ||
+          otherPiece.type != entry.value.type ||
+          otherPiece.color != entry.value.color ||
+          otherPiece.hasUsedGhost != entry.value.hasUsedGhost ||
+          otherPiece.scriptDir != entry.value.scriptDir ||
+          otherPiece.jumpsRemaining != entry.value.jumpsRemaining) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  void _syncStateToFirebase() {
+    if (!state.isMultiplayer || state.matchCode == null) return;
+    _isWritingToFirebase = true;
+    final ref = FirebaseDatabase.instance.ref("matches/${state.matchCode}/gameState");
+    ref.set(stateToJson(state)).then((_) {
+      _isWritingToFirebase = false;
+    }).catchError((_) {
+      _isWritingToFirebase = false;
+    });
+  }
+
+  void _listenToMatchUpdates(String code) {
+    final ref = FirebaseDatabase.instance.ref("matches/$code");
+    _matchSubscription = ref.onValue.listen((event) {
+      if (_isWritingToFirebase) return;
+      if (event.snapshot.value == null) return;
+      
+      final data = event.snapshot.value as Map<dynamic, dynamic>;
+      
+      if (data['status'] == 'abandoned') {
+        state = state.copyWith(
+          winner: state.myColor,
+        );
+        return;
+      }
+      
+      final opponentConnected = state.myColor == PieceColor.white 
+          ? (data['blackPlayerConnected'] as bool? ?? false)
+          : (data['whitePlayerConnected'] as bool? ?? false);
+          
+      if (opponentConnected != state.opponentPresent) {
+        state = state.copyWith(
+          opponentPresent: opponentConnected,
+          isOnlineGameActive: opponentConnected || state.isOnlineGameActive,
+        );
+      }
+      
+      if (data['gameState'] != null) {
+        final gameStateMap = data['gameState'] as Map<dynamic, dynamic>;
+        final updatedState = loadStateFromFirebase(state, gameStateMap);
+        
+        if (!_areStatesEqual(state, updatedState)) {
+          state = updatedState;
+        }
+      }
+    });
+  }
+
+  Future<String> createOnlineMatch(GameMode mode) async {
+    await _matchSubscription?.cancel();
+    
+    final random = DateTime.now().microsecondsSinceEpoch % 9000 + 1000;
+    final code = random.toString();
+    
+    final initialState = GameState.initial(
+      mode: mode,
+      isSoloMode: false,
+      isMultiplayer: true,
+      myColor: PieceColor.white,
+      matchCode: code,
+      opponentPresent: false,
+      isOnlineGameActive: false,
+    );
+    
+    state = initialState;
+    
+    final ref = FirebaseDatabase.instance.ref("matches/$code");
+    await ref.set({
+      'gameMode': mode.name,
+      'status': 'waiting',
+      'whitePlayerConnected': true,
+      'blackPlayerConnected': false,
+      'gameState': stateToJson(initialState),
+    });
+    
+    _listenToMatchUpdates(code);
+    return code;
+  }
+
+  Future<bool> joinOnlineMatch(String code) async {
+    await _matchSubscription?.cancel();
+    
+    final ref = FirebaseDatabase.instance.ref("matches/$code");
+    final snapshot = await ref.get();
+    
+    if (!snapshot.exists) return false;
+    
+    final data = snapshot.value as Map<dynamic, dynamic>;
+    final status = data['status'] as String?;
+    final blackPlayerConnected = data['blackPlayerConnected'] as bool? ?? false;
+    
+    if (status != 'waiting' || blackPlayerConnected) {
+      return false;
+    }
+    
+    final gameModeStr = data['gameMode'] as String? ?? GameMode.assassination.name;
+    final gameMode = GameMode.values.firstWhere((e) => e.name == gameModeStr);
+    
+    await ref.update({
+      'blackPlayerConnected': true,
+      'status': 'active',
+    });
+    
+    final gameStateMap = data['gameState'] as Map<dynamic, dynamic>;
+    final initialBoardJson = gameStateMap['board'] as List<dynamic>;
+    final initialBoard = Board.fromJson(initialBoardJson);
+    
+    final initialState = GameState(
+      board: initialBoard,
+      currentTurn: PieceColor.white,
+      gameMode: gameMode,
+      isSoloMode: false,
+      isMultiplayer: true,
+      myColor: PieceColor.black,
+      matchCode: code,
+      opponentPresent: true,
+      isOnlineGameActive: true,
+    );
+    
+    state = initialState;
+    
+    _listenToMatchUpdates(code);
+    return true;
+  }
+
+  void disconnectOnlineMatch() {
+    if (state.isMultiplayer && state.matchCode != null) {
+      final ref = FirebaseDatabase.instance.ref("matches/${state.matchCode}");
+      ref.update({'status': 'abandoned'});
+      _matchSubscription?.cancel();
+      _matchSubscription = null;
+    }
+    state = GameState.initial();
   }
 }
 

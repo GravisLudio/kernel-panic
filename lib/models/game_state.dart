@@ -34,6 +34,17 @@ class GameState {
   // Para selección de pieza
   final Position? selectedPosition;
 
+  // Modo Solo
+  final bool isSoloMode;
+  final int botDifficulty; // 1 = Fácil, 2 = Medio, 3 = Difícil
+
+  // Modo Multijugador
+  final bool isMultiplayer;
+  final PieceColor myColor;
+  final String? matchCode;
+  final bool opponentPresent;
+  final bool isOnlineGameActive;
+
   const GameState({
     required this.board,
     required this.currentTurn,
@@ -49,13 +60,36 @@ class GameState {
     this.isGhostTargeting = false,
     this.ghostSourcePosition,
     this.selectedPosition,
+    this.isSoloMode = false,
+    this.botDifficulty = 1,
+    this.isMultiplayer = false,
+    this.myColor = PieceColor.white,
+    this.matchCode,
+    this.opponentPresent = false,
+    this.isOnlineGameActive = false,
   });
 
-  factory GameState.initial({GameMode mode = GameMode.assassination}) {
+  factory GameState.initial({
+    GameMode mode = GameMode.assassination,
+    bool isSoloMode = false,
+    int botDifficulty = 1,
+    bool isMultiplayer = false,
+    PieceColor myColor = PieceColor.white,
+    String? matchCode,
+    bool opponentPresent = false,
+    bool isOnlineGameActive = false,
+  }) {
     return GameState(
       board: Board.initial(),
       currentTurn: PieceColor.white,
       gameMode: mode,
+      isSoloMode: isSoloMode,
+      botDifficulty: botDifficulty,
+      isMultiplayer: isMultiplayer,
+      myColor: myColor,
+      matchCode: matchCode,
+      opponentPresent: opponentPresent,
+      isOnlineGameActive: isOnlineGameActive,
     );
   }
 
@@ -66,10 +100,10 @@ class GameState {
     PieceColor? winner,
     bool? isKernelInDanger,
     Position? attackerPosition,
-    Position? whiteKernelKidnapper,
-    Position? blackKernelKidnapper,
     bool clearAttacker = false,
+    Position? whiteKernelKidnapper,
     bool clearWhiteKidnapper = false,
+    Position? blackKernelKidnapper,
     bool clearBlackKidnapper = false,
     bool? whiteOverclockUsed,
     bool? blackOverclockUsed,
@@ -79,6 +113,14 @@ class GameState {
     bool clearGhostSource = false,
     Position? selectedPosition,
     bool clearSelectedPosition = false,
+    bool? isSoloMode,
+    int? botDifficulty,
+    bool? isMultiplayer,
+    PieceColor? myColor,
+    String? matchCode,
+    bool clearMatchCode = false,
+    bool? opponentPresent,
+    bool? isOnlineGameActive,
   }) {
     return GameState(
       board: board ?? this.board,
@@ -95,6 +137,13 @@ class GameState {
       isGhostTargeting: isGhostTargeting ?? this.isGhostTargeting,
       ghostSourcePosition: clearGhostSource ? null : (ghostSourcePosition ?? this.ghostSourcePosition),
       selectedPosition: clearSelectedPosition ? null : (selectedPosition ?? this.selectedPosition),
+      isSoloMode: isSoloMode ?? this.isSoloMode,
+      botDifficulty: botDifficulty ?? this.botDifficulty,
+      isMultiplayer: isMultiplayer ?? this.isMultiplayer,
+      myColor: myColor ?? this.myColor,
+      matchCode: clearMatchCode ? null : (matchCode ?? this.matchCode),
+      opponentPresent: opponentPresent ?? this.opponentPresent,
+      isOnlineGameActive: isOnlineGameActive ?? this.isOnlineGameActive,
     );
   }
 }
