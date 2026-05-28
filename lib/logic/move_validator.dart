@@ -116,7 +116,6 @@ class MoveValidator {
     for (var d in diagonals) {
       int cx = pos.x + d[0];
       int cy = pos.y + d[1];
-      bool jumped = false;
       
       while (board.isInsideBoard(Position(cx, cy))) {
         final p = Position(cx, cy);
@@ -124,27 +123,25 @@ class MoveValidator {
         
         if (targetPiece == null) {
           moves.add(p);
-          if (jumped) {
-            // El Worm debe aterrizar exactamente una casilla después de la pieza saltada.
-            // Si llega aquí, el aterrizaje es válido (vacío) y la trayectoria termina.
-            break; 
-          }
         } else {
-          if (!jumped) {
-            if (canJump) {
-              // Intenta saltar la pieza
-              jumped = true;
-            } else {
-              // No puede saltar, así que puede capturar la primera pieza encontrada y terminar
-              moves.add(p);
-              break;
-            }
-          } else {
-            // Ya saltó una pieza y la casilla de aterrizaje ESTÁ OCUPADA.
-            // El Worm solo puede saltar si la casilla INMEDIATAMENTE detrás está vacía.
-            // Por lo tanto, no puede aterrizar aquí y el salto es inválido.
-            break;
+          // Encontramos la primera pieza en esta diagonal.
+          // 1. Podemos capturarla si es del oponente.
+          if (targetPiece.color != piece.color) {
+            moves.add(p);
           }
+          
+          // 2. Podemos saltarla si tenemos saltos restantes y la casilla detrás está vacía.
+          if (canJump) {
+            final behindX = cx + d[0];
+            final behindY = cy + d[1];
+            final behindPos = Position(behindX, behindY);
+            if (board.isInsideBoard(behindPos) && board.getPieceAt(behindPos) == null) {
+              moves.add(behindPos);
+            }
+          }
+          
+          // Después de encontrar la primera pieza, ya no podemos continuar por esta diagonal.
+          break;
         }
         cx += d[0];
         cy += d[1];

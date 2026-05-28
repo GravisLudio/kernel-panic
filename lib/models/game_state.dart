@@ -29,6 +29,9 @@ class GameState {
   final bool isGhostTargeting; // Estado de la UI para seleccionar objetivo
   final Position? ghostSourcePosition; // El Daemon que está apuntando
 
+  // Para selección de pieza
+  final Position? selectedPosition;
+
   const GameState({
     required this.board,
     required this.currentTurn,
@@ -42,6 +45,7 @@ class GameState {
     this.isOverclockActive = false,
     this.isGhostTargeting = false,
     this.ghostSourcePosition,
+    this.selectedPosition,
   });
 
   factory GameState.initial({GameMode mode = GameMode.assassination}) {
@@ -68,6 +72,8 @@ class GameState {
     bool? isGhostTargeting,
     Position? ghostSourcePosition,
     bool clearGhostSource = false,
+    Position? selectedPosition,
+    bool clearSelectedPosition = false,
   }) {
     return GameState(
       board: board ?? this.board,
@@ -82,6 +88,7 @@ class GameState {
       isOverclockActive: isOverclockActive ?? this.isOverclockActive,
       isGhostTargeting: isGhostTargeting ?? this.isGhostTargeting,
       ghostSourcePosition: clearGhostSource ? null : (ghostSourcePosition ?? this.ghostSourcePosition),
+      selectedPosition: clearSelectedPosition ? null : (selectedPosition ?? this.selectedPosition),
     );
   }
 }

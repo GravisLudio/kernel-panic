@@ -132,6 +132,7 @@ class GameNotifier extends Notifier<GameState> {
         kidnapperPosition: kidnapperPosition,
         clearKidnapper: clearKidnapper,
         winner: winner,
+        clearSelectedPosition: true,
       );
     }
   }
@@ -244,6 +245,7 @@ class GameNotifier extends Notifier<GameState> {
       winner: winner,
       clearAttacker: clearAttacker,
       clearKidnapper: clearKidnapper,
+      clearSelectedPosition: true,
     );
   }
 
@@ -331,6 +333,29 @@ class GameNotifier extends Notifier<GameState> {
     if (piece == null || piece.color != state.currentTurn) return [];
     final validator = MoveValidator(state.board);
     return validator.getValidMoves(pos);
+  }
+
+  void selectPosition(Position? pos) {
+    if (state.winner != null) return;
+    if (state.isGhostTargeting) return;
+
+    if (state.selectedPosition != null && pos != null) {
+      final validMoves = getValidMovesFor(state.selectedPosition!);
+      if (validMoves.contains(pos)) {
+        movePiece(state.selectedPosition!, pos);
+        return;
+      }
+    }
+
+    if (pos != null) {
+      final piece = state.board.getPieceAt(pos);
+      if (piece != null && piece.color == state.currentTurn) {
+        state = state.copyWith(selectedPosition: pos);
+        return;
+      }
+    }
+
+    state = state.copyWith(clearSelectedPosition: true);
   }
 }
 

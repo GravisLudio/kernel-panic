@@ -62,6 +62,11 @@ class BoardView extends ConsumerWidget {
               }
             }
 
+            final selectedPos = gameState.selectedPosition;
+            final isSelected = selectedPos == position;
+            final isMoveTarget = selectedPos != null &&
+                ref.read(gameProvider.notifier).getValidMovesFor(selectedPos).contains(position);
+
             Color highlightColor = Colors.transparent;
             
             Widget squareContent = DragTarget<Position>(
@@ -79,7 +84,9 @@ class BoardView extends ConsumerWidget {
                   else if (isGhostValidTarget) highlightColor = Colors.redAccent; // Blanco válido
                   else highlightColor = Colors.transparent; // No marcar nada más
                 } else {
-                  if (candidateData.isNotEmpty) highlightColor = Colors.greenAccent;
+                  if (isSelected) highlightColor = Colors.cyanAccent;
+                  else if (isMoveTarget && piece != null) highlightColor = Colors.redAccent; // Captura
+                  else if (candidateData.isNotEmpty) highlightColor = Colors.greenAccent;
                   else if (rejectedData.isNotEmpty) highlightColor = Colors.redAccent;
                 }
 
@@ -103,13 +110,37 @@ class BoardView extends ConsumerWidget {
                           ),
                           child: _PieceWidget(piece: piece),
                         )
-                      : null,
+                      : (isMoveTarget
+                          ? Center(
+                              child: Container(
+                                width: 14,
+                                height: 14,
+                                decoration: BoxDecoration(
+                                  color: Colors.greenAccent.withOpacity(0.6),
+                                  shape: BoxShape.circle,
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Colors.greenAccent,
+                                      blurRadius: 6,
+                                      spreadRadius: 1,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                          : null),
                 );
               },
             );
 
             return GestureDetector(
-              onTap: isGhostTargeting ? () => ref.read(gameProvider.notifier).useGhostOn(position) : null,
+              onTap: () {
+                if (isGhostTargeting) {
+                  ref.read(gameProvider.notifier).useGhostOn(position);
+                } else {
+                  ref.read(gameProvider.notifier).selectPosition(position);
+                }
+              },
               child: squareContent,
             );
           },
